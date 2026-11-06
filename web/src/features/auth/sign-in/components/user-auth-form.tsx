@@ -178,7 +178,7 @@ export function UserAuthForm({
 
     // 阿里云验证码：开启且尚未完成验证时，阻止提交
     if (aliyunCaptchaReady && !captchaVerifyParam) {
-      toast.info(t('Please complete the human verification first'))
+      toast.info('请先完成人机验证；若验证码无反应，请刷新重试或更换网络')
       return
     }
 
@@ -445,6 +445,7 @@ export function UserAuthForm({
                   prefix={aliyunCaptchaPrefix}
                   region={aliyunCaptchaRegion}
                   onVerify={setCaptchaVerifyParam}
+                  onError={() => toast.error('人机验证加载失败，请刷新重试或更换网络环境')}
                 />
               </div>
             )}

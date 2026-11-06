@@ -170,7 +170,7 @@ export function SignUpForm({
     if (!validateTurnstile()) return
 
     if (aliyunCaptchaReady && !captchaVerifyParam) {
-      toast.info(t('Please complete the human verification first'))
+      toast.info('请先点击「人机验证」完成验证；若按钮无反应，请刷新重试或更换网络')
       return
     }
 
@@ -202,6 +202,10 @@ export function SignUpForm({
   }
 
   async function handleSendVerificationCode() {
+    if (aliyunCaptchaReady && !captchaVerifyParam) {
+      toast.info('请先点击「人机验证」完成验证，再发送邮箱验证码')
+      return
+    }
     if (await sendCode(emailValue || '')) {
       setTurnstileToken('')
       setTurnstileWidgetKey((current) => current + 1)
@@ -385,6 +389,7 @@ export function SignUpForm({
               prefix={aliyunCaptchaPrefix}
               region={aliyunCaptchaRegion}
               onVerify={setCaptchaVerifyParam}
+              onError={() => toast.error('人机验证加载失败，请刷新重试或更换网络环境')}
             />
           </div>
         )}

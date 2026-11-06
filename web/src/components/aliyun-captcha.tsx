@@ -83,7 +83,11 @@ export function AliyunCaptcha({
     if (initializedRef.current) return
 
     const init = async () => {
-      if (!window.initAliyunCaptcha) return
+      if (!window.initAliyunCaptcha) {
+        setState('error')
+        onErrorRef.current?.()
+        return
+      }
       initializedRef.current = true
       window.AliyunCaptchaConfig = { region, prefix }
       try {
@@ -151,7 +155,9 @@ export function AliyunCaptcha({
       ? '人机验证已完成'
       : state === 'verifying'
         ? '验证中…'
-        : '点击完成人机验证'
+        : state === 'error'
+          ? '人机验证加载失败，请刷新重试'
+          : '点击完成人机验证'
 
   return (
     <div className={className}>
@@ -160,7 +166,7 @@ export function AliyunCaptcha({
         type="button"
         onClick={() => setState('verifying')}
         disabled={state === 'done'}
-        className="text-muted-foreground text-sm underline-offset-4 hover:underline"
+        className={`text-sm underline-offset-4 hover:underline ${state === 'error' ? 'text-red-500' : 'text-muted-foreground'}`}
       >
         {label}
       </button>
