@@ -157,6 +157,11 @@ func verifyAliyunCaptcha(captchaVerifyParam string) (bool, error) {
 	if !r.Success {
 		return false, fmt.Errorf("aliyun api error code=%s message=%s http=%d", r.Code, r.Message, res.StatusCode)
 	}
+	if !r.Result.VerifyResult {
+		// 拒验原因原先完全静默（服务端只看到 ok=false），线上排障只能靠猜。
+		// F008=重复提交 F010=同IP频控 F015=交互失败 F014=初始化记录过期
+		common.SysLog("aliyun captcha rejected: verify_code=" + r.Result.VerifyCode + " certify_id=" + r.Result.CertifyId)
+	}
 	return r.Result.VerifyResult, nil
 }
 

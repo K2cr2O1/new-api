@@ -444,6 +444,7 @@ export function UserAuthForm({
                   sceneId={aliyunCaptchaSceneId}
                   prefix={aliyunCaptchaPrefix}
                   region={aliyunCaptchaRegion}
+                  verified={!!captchaVerifyParam}
                   onVerify={setCaptchaVerifyParam}
                   onError={() => toast.error('人机验证加载失败，请刷新重试或更换网络环境')}
                 />

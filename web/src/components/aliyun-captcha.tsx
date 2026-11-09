@@ -28,6 +28,8 @@ interface AliyunCaptchaProps {
   onVerify: (captchaVerifyParam: string) => void
   onError?: () => void
   className?: string
+  /** 父组件持有的验证票据；票据被清空（已消费/提交失败）后控件回到可再次验证 */
+  verified?: boolean
 }
 
 /**
@@ -65,6 +67,7 @@ export function AliyunCaptcha({
   region,
   onVerify,
   onError,
+  verified,
   className,
 }: AliyunCaptchaProps) {
   const [state, setState] = useState<'idle' | 'verifying' | 'done' | 'error'>(
@@ -79,7 +82,27 @@ export function AliyunCaptcha({
   onVerifyRef.current = onVerify
   onErrorRef.current = onError
 
+  // 票据被父组件清空（发信已消费 / 提交失败）后必须回到 idle，
+  // 否则按钮一直是 disabled 的「人机验证已完成」，用户只能刷新页面。
   useEffect(() => {
+    if (!verified) {
+      setState((prev) => (prev === 'done' ? 'idle' : prev))
+    }
+  }, [verified])
+
+  // 兜底：SDK 未回调（弹窗被拦截、脚本异常）时不要永远停在「验证中…」
+  useEffect(() => {
+    if (state !== 'verifying') return
+    const timer = window.setTimeout(() => {
+      setState((prev) => (prev === 'verifying' ? 'idle' : prev))
+      onErrorRef.current?.()
+    }, 45000)
+    return () => window.clearTimeout(timer)
+  }, [state])
+
+  useEffect(() => {
+    // 官方要求：AliyunCaptchaConfig 必须在 SDK 脚本加载之前写入
+    window.AliyunCaptchaConfig = { region, prefix }
     if (initializedRef.current) return
 
     const init = async () => {
@@ -89,7 +112,6 @@ export function AliyunCaptcha({
         return
       }
       initializedRef.current = true
-      window.AliyunCaptchaConfig = { region, prefix }
       try {
         // 加密模式：优先获取 EncryptedSceneId；失败则降级为明文 SceneId（兼容未开启）
         let encryptedSceneId = ''

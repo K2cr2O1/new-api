@@ -198,6 +198,8 @@ export function SignUpForm({
       )
     } finally {
       setIsLoading(false)
+      // 票据一次性：提交后无论成功失败都清空，避免重试时重复提交同一张票据（F008）
+      if (aliyunCaptchaReady) setCaptchaVerifyParam('')
     }
   }
 
@@ -209,6 +211,9 @@ export function SignUpForm({
     if (await sendCode(emailValue || '')) {
       setTurnstileToken('')
       setTurnstileWidgetKey((current) => current + 1)
+      // 发信已消费当前票据，必须清空并要求重新验证，否则注册提交会被判 F008
+      setCaptchaVerifyParam('')
+      toast.info('验证码已发送，请重新完成一次人机验证后再提交注册')
     }
   }
 
@@ -388,6 +393,7 @@ export function SignUpForm({
               sceneId={aliyunCaptchaSceneId}
               prefix={aliyunCaptchaPrefix}
               region={aliyunCaptchaRegion}
+              verified={!!captchaVerifyParam}
               onVerify={setCaptchaVerifyParam}
               onError={() => toast.error('人机验证加载失败，请刷新重试或更换网络环境')}
             />
