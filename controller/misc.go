@@ -241,7 +241,7 @@ func SendEmailVerification(c *gin.Context) {
 <html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:24px;background-color:#f5f5f7;">
 <div style="max-width:480px;margin:0 auto;background-color:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;">
-<div style="background:linear-gradient(135deg,#e2505b 0%,#f97316 100%);padding:26px 24px;text-align:center;"><div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;">%s</div></div>
+<div style="background:linear-gradient(135deg,#e2505b 0%%,#f97316 100%%);padding:26px 24px;text-align:center;"><div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;">%s</div></div>
 <div style="padding:32px 28px;">
 <p style="margin:0 0 24px;color:#333333;font-size:15px;line-height:1.7;">%s</p>
 <div style="text-align:center;margin:8px 0 24px;padding:22px 16px;background-color:#fdf1f2;border:1px dashed #e2505b;border-radius:10px;color:#333333;font-size:17px;line-height:1.6;">%s</div>
@@ -287,7 +287,7 @@ func SendPasswordResetEmail(c *gin.Context) {
 <html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:24px;background-color:#f5f5f7;">
 <div style="max-width:480px;margin:0 auto;background-color:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,0.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;">
-<div style="background:linear-gradient(135deg,#e2505b 0%,#f97316 100%);padding:26px 24px;text-align:center;"><div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;">%s</div></div>
+<div style="background:linear-gradient(135deg,#e2505b 0%%,#f97316 100%%);padding:26px 24px;text-align:center;"><div style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:2px;">%s</div></div>
 <div style="padding:32px 28px;">
 <p style="margin:0 0 24px;color:#333333;font-size:15px;line-height:1.7;">%s</p>
 <div style="text-align:center;margin:8px 0 24px;padding:20px 16px;background-color:#fdf1f2;border:1px dashed #e2505b;border-radius:10px;color:#333333;font-size:15px;line-height:1.7;">%s</div>

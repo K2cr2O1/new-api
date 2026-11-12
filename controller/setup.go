@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -25,6 +26,13 @@ type SetupRequest struct {
 }
 
 func GetSetup(c *gin.Context) {
+	// 2026-11-07 F-04 修复：初始化完成后该路由对外表现为不存在，
+	// 避免未授权探测 root 初始化状态与数据库类型。
+	if constant.Setup || model.RootUserExists() {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Not Found"})
+		return
+	}
+
 	setup := Setup{
 		Status: constant.Setup,
 	}
