@@ -39,6 +39,13 @@ relay.group_upstream_saturated: "The upstream of the current group is at capacit
 relay.retry_get_channel_failed: "Failed to get available channel for model {{.Model}} under group {{.Group}} (retry): {{.Error}}"
 relay.retry_no_available_channel: "No available channel for model {{.Model}} under group {{.Group}} (retry)"
 relay.access_token_unsupported: "Access tokens are not supported here"
+content_safety.guidelines: "This content doesn't meet our usage guidelines."
+content_safety.review: "This content is held for review and was not generated."
+content_safety.unavailable: "Content safety is unavailable, so the request was not generated."
+content_safety.rate_limit: "Content safety is busy. Try again later."
+content_safety.no_text: "This request has no text that can be screened, so it was not generated."
+content_safety.too_long: "This request is too long to screen, so it was not generated."
+content_safety.output: "The generated content doesn't meet our usage guidelines."
 
 # Emails and the name of the token created at registration
 user.default_token_name: "{{.Username}}'s initial token"

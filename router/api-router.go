@@ -332,6 +332,14 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/self/export", middleware.UserAuth(), controller.ExportUserLogs)
 		logRoute.GET("/self/search", middleware.UserAuth(), middleware.SearchRateLimit(), controller.SearchUserLogs)
 
+		moderationRoute := apiRouter.Group("/moderation")
+		moderationRoute.Use(middleware.AdminAuth())
+		{
+			moderationRoute.GET("/settings", controller.GetModerationSettings)
+			moderationRoute.PUT("/settings", controller.UpdateModerationSettings)
+			moderationRoute.GET("/logs", controller.GetModerationLogs)
+		}
+
 		systemTaskRoute := apiRouter.Group("/system-task")
 		systemTaskRoute.Use(middleware.RootAuth())
 		{

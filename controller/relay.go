@@ -118,6 +118,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				})
 			}
 		}
+		// Flush text held for the output blocklist after the client body is written.
+		service.FinishOutputModeration(c)
 	}()
 
 	request, err := helper.GetAndValidateRequest(c, relayFormat)
@@ -150,6 +152,16 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			panic(recovered)
 		}
 	}()
+
+	// Prompt Sift runs before billing and before the channel retry loop.
+	// Anything other than allow returns here, so upstream is not called.
+	if newAPIError = service.ScreenGeneration(c, service.GenerationSpec{
+		RelayMode: relayInfo.RelayMode,
+		Model:     relayInfo.OriginModelName,
+		IsStream:  relayInfo.IsStream,
+	}); newAPIError != nil {
+		return
+	}
 
 	generalSettings := operation_setting.GetGeneralSetting()
 	if relayFormat == types.RelayFormatClaude && relayInfo.IsStream && generalSettings.PingIntervalEnabled {
@@ -334,6 +346,7 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 }
 
 func RelayMidjourney(c *gin.Context) {
+	defer service.FinishOutputModeration(c)
 	policy := service.RequestPolicy(c)
 	defer func() {
 		if policy.Attempts > 0 && !policy.Successful {
@@ -352,6 +365,18 @@ func RelayMidjourney(c *gin.Context) {
 	}
 
 	var mjErr *taskdto.MidjourneyResponse
+	// Submit routes are generation. Fetch, notify, and seed routes are not.
+	if newAPIError := service.ScreenGeneration(c, service.GenerationSpec{
+		RelayMode: relayInfo.RelayMode,
+		Model:     relayInfo.OriginModelName,
+	}); newAPIError != nil {
+		c.JSON(newAPIError.StatusCode, gin.H{
+			"description": newAPIError.Error(),
+			"type":        "content_policy_violation",
+			"code":        24,
+		})
+		return
+	}
 	switch relayInfo.RelayMode {
 	case relayconstant.RelayModeMidjourneyNotify:
 		mjErr = relay.RelayMidjourneyNotify(c)
@@ -443,6 +468,7 @@ func RelayTaskPluginEndpoint(c *gin.Context, fallback gin.HandlerFunc) {
 }
 
 func RelayTaskFetch(c *gin.Context) {
+	defer service.FinishOutputModeration(c)
 	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, &taskdto.TaskError{
@@ -452,6 +478,7 @@ func RelayTaskFetch(c *gin.Context) {
 		})
 		return
 	}
+	service.ArmOutputModeration(c, relayInfo.OriginModelName, false)
 	if taskErr := relay.RelayTaskFetch(c, relayInfo.RelayMode); taskErr != nil {
 		respondTaskError(c, taskErr)
 	}
@@ -464,6 +491,7 @@ type taskSubmissionOutcome struct {
 }
 
 func RelayTask(c *gin.Context) {
+	defer service.FinishOutputModeration(c)
 	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
 	if err != nil {
 		respondTaskSubmissionError(c, &taskdto.TaskError{
@@ -526,6 +554,14 @@ func executeTaskSubmissionWith(
 		}
 	}()
 	stage = "before_attempt"
+	// Prompt Sift runs before channel selection, billing, and RelayTaskSubmit.
+	if apiErr := service.ScreenGeneration(c, service.GenerationSpec{
+		RelayMode: relayInfo.RelayMode,
+		Model:     relayInfo.OriginModelName,
+		IsStream:  relayInfo.IsStream,
+	}); apiErr != nil {
+		return nil, service.TaskErrorWrapperLocal(apiErr, string(apiErr.GetErrorCode()), apiErr.StatusCode)
+	}
 	if requestErr := c.Request.Context().Err(); requestErr != nil {
 		diagnostics.cancelled("before_attempt", 0)
 		return nil, service.TaskErrorWrapperLocal(requestErr, "request_cancelled", http.StatusRequestTimeout)

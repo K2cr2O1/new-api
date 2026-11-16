@@ -28,6 +28,7 @@ import (
 // protocol timeout elapses, and the plugin's render hook finally shapes the
 // OpenAI image response from the terminal task.
 func serveTaskPluginImageProtocol(c *gin.Context, pinned pluginruntime.PinnedEndpoint, deps pluginProtocolBridgeDeps) {
+	defer service.FinishOutputModeration(c)
 	deps = deps.withDefaults()
 	requestValue, exists := c.Get(pluginruntime.ContextKeyProtocolRequest)
 	protocolRequest, ok := requestValue.(pluginruntime.ProtocolRequestContext)

@@ -23,6 +23,7 @@ import (
 	"github.com/QuantumNous/new-api/pkg/wsmanager"
 	relaychannel "github.com/QuantumNous/new-api/relay/channel"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -100,13 +101,16 @@ type responsesWSSession struct {
 	workers        sync.WaitGroup
 	closeOnce      sync.Once
 
-	clientWriteMu sync.Mutex
-	targetWriteMu sync.Mutex
-	connectionMu  sync.Mutex
-	target        *websocket.Conn
-	unregister    func()
-	stateMu       sync.Mutex
-	current       *responsesWSCallState
+	clientWriteMu       sync.Mutex
+	outputGuard         *service.OutputGuard
+	outputMessage       string
+	outputViolationSent bool
+	targetWriteMu       sync.Mutex
+	connectionMu        sync.Mutex
+	target              *websocket.Conn
+	unregister          func()
+	stateMu             sync.Mutex
+	current             *responsesWSCallState
 
 	// clientWriteBudget is guarded by clientWriteMu.
 	clientWriteBudget helper.StreamWriteBudget
@@ -204,6 +208,9 @@ func (s *responsesWSSession) runRequest(state *responsesWSCallState, message []b
 		}
 		s.clientWriteMu.Lock()
 		s.stateMu.Lock()
+		if outgoing != nil && s.outputBlockedLocked(outgoing.body) {
+			outgoing = nil
+		}
 		if outgoing != nil {
 			if err := s.client.SetWriteDeadline(s.clientWriteBudget.Deadline(time.Now(), len(outgoing.body))); err != nil {
 				state.closeCode = websocket.CloseInternalServerErr
@@ -263,6 +270,17 @@ func (s *responsesWSSession) runCall(c *gin.Context, state *responsesWSCallState
 	if modelName == "" {
 		return newResponsesWSInvalidRequestError(errors.New("model is required"))
 	}
+	// Prompt Sift the response.create body before billing or the upstream socket.
+	if apiErr = service.ScreenGeneration(c, service.GenerationSpec{
+		RelayMode:   relayconstant.RelayModeResponses,
+		Model:       modelName,
+		Body:        create.Body,
+		ContentType: "application/json",
+		IsStream:    true,
+	}); apiErr != nil {
+		return apiErr
+	}
+	s.setOutputGuard(service.NewOutputGuard(c, modelName), i18n.T(c, i18n.MsgContentSafetyOutput))
 	if s.lockedModel != "" && modelName != s.lockedModel {
 		return newResponsesWSInvalidRequestError(fmt.Errorf("responses websocket connection is locked to model %q", s.lockedModel))
 	}
@@ -718,9 +736,45 @@ func (s *responsesWSSession) writeTarget(kind int, message []byte) error {
 	return target.WriteMessage(kind, message)
 }
 
+func (s *responsesWSSession) setOutputGuard(guard *service.OutputGuard, message string) {
+	s.clientWriteMu.Lock()
+	s.outputGuard = guard
+	s.outputMessage = message
+	s.outputViolationSent = false
+	s.clientWriteMu.Unlock()
+}
+
+func (s *responsesWSSession) outputBlockedLocked(message []byte) bool {
+	if s.outputGuard == nil || s.outputGuard.Allow(message) {
+		return false
+	}
+	if !s.outputViolationSent {
+		s.outputViolationSent = true
+		messageText := s.outputMessage
+		if messageText == "" {
+			messageText = "The generated content doesn't meet our usage guidelines."
+		}
+		if payload, err := common.Marshal(map[string]any{
+			"type": "error",
+			"error": map[string]any{
+				"message": messageText,
+				"type":    "content_policy_violation",
+				"code":    "content_policy_violation",
+			},
+		}); err == nil {
+			_ = s.client.SetWriteDeadline(s.clientWriteBudget.Deadline(time.Now(), len(payload)))
+			_ = s.client.WriteMessage(websocket.TextMessage, payload)
+		}
+	}
+	return true
+}
+
 func (s *responsesWSSession) writeClient(kind int, message []byte) error {
 	s.clientWriteMu.Lock()
 	defer s.clientWriteMu.Unlock()
+	if s.outputBlockedLocked(message) {
+		return errors.New("generated content was withheld")
+	}
 	if err := s.client.SetWriteDeadline(s.clientWriteBudget.Deadline(time.Now(), len(message))); err != nil {
 		return err
 	}
