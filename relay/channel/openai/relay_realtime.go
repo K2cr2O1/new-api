@@ -34,6 +34,14 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 	usage := &dto.RealtimeUsage{}
 	localUsage := &dto.RealtimeUsage{}
 	sumUsage := &dto.RealtimeUsage{}
+	outputGuard := service.NewOutputGuard(c, info.UpstreamModelName)
+	moderationCh := make(chan *types.NewAPIError, 1)
+	stopForModeration := func(apiErr *types.NewAPIError) {
+		select {
+		case moderationCh <- apiErr:
+		default:
+		}
+	}
 
 	gopool.Go(func() {
 		defer func() {
@@ -68,6 +76,13 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 							info.RealtimeTools = realtimeEvent.Session.Tools
 						}
 					}
+				}
+
+				// Text in the client event is screened before it is forwarded.
+				// Audio frames have no text and are not sent to Prompt Sift.
+				if apiErr := service.ScreenPromptText(c, info.UpstreamModelName, service.ExtractPromptText(message, "application/json")); apiErr != nil {
+					stopForModeration(apiErr)
+					return
 				}
 
 				textToken, audioToken, err := service.CountTokenRealtime(info, *realtimeEvent, info.UpstreamModelName)
@@ -187,6 +202,10 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 					localUsage.OutputTokenDetails.AudioTokens += audioToken
 				}
 
+				if !outputGuard.Allow(message) {
+					stopForModeration(service.OutputViolationError(c))
+					return
+				}
 				err = helper.WssString(c, clientConn, string(message))
 				if err != nil {
 					errChan <- fmt.Errorf("error writing to client: %v", err)
@@ -202,6 +221,8 @@ func OpenaiRealtimeHandler(c *gin.Context, info *relaycommon.RelayInfo) (*types.
 	})
 
 	select {
+	case apiErr := <-moderationCh:
+		return apiErr, sumUsage
 	case <-clientClosed:
 	case <-targetClosed:
 	case err := <-errChan:

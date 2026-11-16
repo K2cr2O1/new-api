@@ -164,6 +164,7 @@ func serveTaskPluginProtocol(
 	pinned pluginruntime.PinnedEndpoint,
 	deps pluginProtocolBridgeDeps,
 ) {
+	defer service.FinishOutputModeration(c)
 	deps = deps.withDefaults()
 	generation := uint64(0)
 	if pinned.Generation != nil {

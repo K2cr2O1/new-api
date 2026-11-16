@@ -129,6 +129,8 @@ func InitOptionMap() {
 	common.OptionMap["WaffoPancakeReturnURL"] = setting.WaffoPancakeReturnURL
 	common.OptionMap["WaffoPancakeUnitPrice"] = strconv.FormatFloat(setting.WaffoPancakeUnitPrice, 'f', -1, 64)
 	common.OptionMap["WaffoPancakeMinTopUp"] = strconv.Itoa(setting.WaffoPancakeMinTopUp)
+	common.OptionMap["ContentModerationEnabled"] = setting.ContentModerationEnabled
+	common.OptionMap["ContentModerationBlocklist"] = setting.ContentModerationBlocklist
 	common.OptionMap["WaffoPancakeStoreID"] = setting.WaffoPancakeStoreID
 	common.OptionMap["WaffoPancakeProductID"] = setting.WaffoPancakeProductID
 	common.OptionMap["TopupGroupRatio"] = common.TopupGroupRatio2JSONString()
@@ -237,6 +239,16 @@ func SyncOptions(frequency int) {
 func validateOptionValue(key string, value string) error {
 	if key == legacyAccessTokenRetireAtKey {
 		return errLegacyRetireAtReadOnly
+	}
+	if key == "ContentModerationEnabled" {
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "", "auto", "true", "false", "on", "off", "1", "0":
+		default:
+			return common.NewMessage("Content moderation mode must be auto, true, or false")
+		}
+	}
+	if key == "ContentModerationBlocklist" && len(value) > 200_000 {
+		return common.NewMessage("Content moderation blocklist is too long")
 	}
 	if err := operation_setting.ValidateQuotaOption(key, value); err != nil {
 		return err
@@ -612,6 +624,10 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.WaffoPancakeUnitPrice, _ = strconv.ParseFloat(value, 64)
 	case "WaffoPancakeMinTopUp":
 		setting.WaffoPancakeMinTopUp, _ = strconv.Atoi(value)
+	case "ContentModerationEnabled":
+		setting.ContentModerationEnabled = value
+	case "ContentModerationBlocklist":
+		setting.ContentModerationBlocklist = value
 	case "TopupGroupRatio":
 		err = common.UpdateTopupGroupRatioByJSONString(value)
 	case "GitHubClientId":

@@ -31,6 +31,7 @@ import {
   Radio,
   ServerCog,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   Ticket,
   User,
@@ -156,6 +157,12 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             title: t('Subscriptions'),
             url: '/subscriptions',
             icon: CreditCard,
+          },
+          {
+            title: t('Content moderation'),
+            url: '/moderation',
+            icon: ShieldAlert,
+            requiredRole: ROLE.ADMIN,
           },
           {
             title: t('System Info'),
